@@ -23,7 +23,7 @@
             android:layout_marginLeft="10dp"
             android:layout_alignParentLeft="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/ic_arrow_back_white_18dp"/>
+            android:background="@drawable/ic_arrow_back_white_36dp"/>
 
     </RelativeLayout>
     <ListView

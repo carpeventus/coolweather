@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="14dp" >
+    android:layout_margin="18dp" >
     <TextView
         android:id="@+id/item_data_text"
         android:layout_width="0dp"
