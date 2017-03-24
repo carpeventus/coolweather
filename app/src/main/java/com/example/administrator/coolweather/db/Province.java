@@ -9,6 +9,7 @@ public class Province extends DataSupport {
     private int provinceCode;
 
     public int getId() {
+        //Log.d("ProvinceId", id+"");
         return id;
     }
 

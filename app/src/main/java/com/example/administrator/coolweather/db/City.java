@@ -1,6 +1,8 @@
 package com.example.administrator.coolweather.db;
 
 
+import android.util.Log;
+
 import org.litepal.crud.DataSupport;
 
 public class City extends DataSupport {
@@ -11,6 +13,7 @@ public class City extends DataSupport {
     private int provinceId;
 
     public int getId() {
+        // Log.d("CityId", id+"");
         return id;
     }
 
