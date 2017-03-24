@@ -96,6 +96,7 @@ public class WeatherActivity extends AppCompatActivity {
             // 有缓存时直接解析天气数据,每次打开程序就自动更新
             Weather weather = Utility.handleWeatherResponse(weatherString);
             mWeatherId = weather.basic.weatherId;
+            // 这里会开启服务，这时开始更新数据
             showWeatherInfo(weather);
             // 无法缓存时去服务器查询
         } else {
@@ -311,7 +312,7 @@ public class WeatherActivity extends AppCompatActivity {
             // 每次应用启动会调用showWeatherInfo方法，在这里启动服务，保证每次进来都是更新过的数据
             Intent intent = new Intent(this, AutoUpdateService.class);
             startService(intent);
-            
+
         } else {
             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
         }
