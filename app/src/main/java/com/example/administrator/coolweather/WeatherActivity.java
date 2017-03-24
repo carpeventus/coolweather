@@ -1,5 +1,6 @@
 package com.example.administrator.coolweather;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
@@ -9,7 +10,6 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -22,6 +22,7 @@ import android.widget.Toast;
 import com.bumptech.glide.Glide;
 import com.example.administrator.coolweather.gson.Forecast;
 import com.example.administrator.coolweather.gson.Weather;
+import com.example.administrator.coolweather.service.AutoUpdateService;
 import com.example.administrator.coolweather.util.HttpUtil;
 import com.example.administrator.coolweather.util.Utility;
 
@@ -31,6 +32,7 @@ import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.Response;
 
+// TODO 返回键可以返回选择城市列表，而不是直接退出程序。drawer的标题栏太高，不美观
 public class WeatherActivity extends AppCompatActivity {
 
     public SwipeRefreshLayout swipeRefreshLayout;
@@ -95,7 +97,6 @@ public class WeatherActivity extends AppCompatActivity {
             Weather weather = Utility.handleWeatherResponse(weatherString);
             mWeatherId = weather.basic.weatherId;
             showWeatherInfo(weather);
-            requestWeather(mWeatherId);
             // 无法缓存时去服务器查询
         } else {
             // 只有第一次选择城市的时候回进入这个条件，之后都会从SharedPreferences读取最新选择的城市
@@ -115,14 +116,7 @@ public class WeatherActivity extends AppCompatActivity {
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                // 切换城市后weather信息覆盖了原来的SharedPreferences文件，而mWeatherId只在程序一开始时获取了一次
-                // 若刷新的时候不再次回去，这个mWeatherId还是上次保存的那个。这里我们再次获取，得到刚刚切换的城市的mWeatherId
-                SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this);
-                String weatherString = preferences.getString("weather", null);
-                if (weatherString != null) {
-                    Weather weather = Utility.handleWeatherResponse(weatherString);
-                    mWeatherId = weather.basic.weatherId;
-                }
+                // 上次请求已经保存了最新的weatherId.若没有切换城市每次刷新都是刷新当前
                 requestWeather(mWeatherId);
             }
         });
@@ -134,11 +128,61 @@ public class WeatherActivity extends AppCompatActivity {
         } else {
             loadBingPic();
         }
+
+        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
+
+            @Override
+            public void onDrawerOpened(View drawerView) {
+                if (Build.VERSION.SDK_INT >= 21) {
+                    View decorView = getWindow().getDecorView();
+
+                    decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN);
+
+                    getWindow().setStatusBarColor(Color.TRANSPARENT);
+                }
+            }
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+                if (Build.VERSION.SDK_INT >= 21) {
+                    View decorView = getWindow().getDecorView();
+
+                    decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE // 防止系统栏隐藏时内容区域大小发生变化
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+
+                    getWindow().setStatusBarColor(Color.TRANSPARENT);
+                }
+            }
+        });
+    }
+
+    /**
+     * 重写返回键监听
+     * 当drawer打开时候，功能和上面的返回键一样。不过当前等级为省份时候，关闭drawer回到天气界面
+     * 当drawer已经关闭的状态，再次按下返回键，退出程序
+     */
+    @Override
+    public void onBackPressed() {
+        ChooseAreaFragment drawerFragment = (ChooseAreaFragment) getSupportFragmentManager().findFragmentById(R.id.drawer_choose_area_fragment);
+        if (drawerLayout.isDrawerOpen(R.id.drawer_choose_area_fragment)) {
+            if (ChooseAreaFragment.currentLevel == ChooseAreaFragment.LEVEL_COUNTRY) {
+                drawerFragment.queryCities();
+            } else if (ChooseAreaFragment.currentLevel == ChooseAreaFragment.LEVEL_CITY) {
+                drawerFragment.queryProvinces();
+            } else if (ChooseAreaFragment.currentLevel == ChooseAreaFragment.LEVEL_PROVINCE) {
+                drawerLayout.closeDrawers();
+            }
+        } else {
+            super.onBackPressed();
+        }
     }
 
     /**
      * 加载Bing每日一图
      */
+
     private void loadBingPic() {
         String requestBingPicUrl = "http://guolin.tech/api/bing_pic";
         HttpUtil.sendOkHttpRequest(requestBingPicUrl, new Callback() {
@@ -196,6 +240,8 @@ public class WeatherActivity extends AppCompatActivity {
                             SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
                             editor.putString("weather", responseText);
                             editor.apply();
+                            // 每请求一次就保存当前城市的ID
+                            mWeatherId = weather.basic.weatherId;
                             showWeatherInfo(weather);
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
@@ -215,44 +261,59 @@ public class WeatherActivity extends AppCompatActivity {
      * @param weather Weather实例
      */
     private void showWeatherInfo(Weather weather) {
-        // title.xml now.xml中的内容
-        String cityName = weather.basic.cityName;
-        // 只取时间不取日期，2017.3.23 15:03,以空格分割，取第二个
-        String updateTime = "更新于"+weather.basic.update.updateTime.split(" ")[1];
-        String degree = weather.now.temperature + "℃";
-        String weatherInfo = weather.now.more.info;
-        titleCity.setText(cityName);
-        titleUpdateTime.setText(updateTime);
-        degreeText.setText(degree);
-        weatherInfoText.setText(weatherInfo);
+        if (weather != null && weather.status.equals("ok")) {
+            // title.xml now.xml中的内容
+            String cityName = weather.basic.cityName;
+            // 只取时间不取日期，2017.3.23 15:03,以空格分割，取第二个
+            String updateTime = "更新于" + weather.basic.update.updateTime.split(" ")[1];
+            String degree = weather.now.temperature + "℃";
+            String weatherInfo = weather.now.more.info;
+            titleCity.setText(cityName);
+            titleUpdateTime.setText(updateTime);
+            degreeText.setText(degree);
+            weatherInfoText.setText(weatherInfo);
 
-        // forecast.xml中的内容
-        forecastLayout.removeAllViews(); // 更新预报时先清空所有view
-        for (Forecast forecast : weather.forecastList) {
-            View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
-            TextView dateText = (TextView) view.findViewById(R.id.item_data_text);
-            TextView infoText = (TextView) view.findViewById(R.id.item_info_text);
-            TextView maxAndMinText = (TextView) view.findViewById(R.id.item_min_max_text);
-            String date = forecast.date.split("-")[1] +"月"+ forecast.date.split("-")[2] + "日";
-            dateText.setText(date);
-            infoText.setText(forecast.more.info);
-            String maxAndMinDegree = forecast.temperature.max + "℃ / " + forecast.temperature.min + "℃";
-            maxAndMinText.setText(maxAndMinDegree);
-            forecastLayout.addView(view);
+            // forecast.xml中的内容
+            forecastLayout.removeAllViews(); // 更新预报时先清空所有view
+            for (Forecast forecast : weather.forecastList) {
+                View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
+                TextView dateText = (TextView) view.findViewById(R.id.item_data_text);
+                TextView infoText = (TextView) view.findViewById(R.id.item_info_text);
+                TextView maxAndMinText = (TextView) view.findViewById(R.id.item_min_max_text);
+                String date = forecast.date.split("-")[1] + "月" + forecast.date.split("-")[2] + "日";
+                dateText.setText(date);
+                infoText.setText(forecast.more.info);
+                String maxAndMinDegree = forecast.temperature.max + "℃ / " + forecast.temperature.min + "℃";
+                maxAndMinText.setText(maxAndMinDegree);
+                forecastLayout.addView(view);
+            }
+
+            if (weather.aqi != null) {
+                aqiText.setTextSize(40);
+                pm25Text.setTextSize(40);
+                aqiText.setText(weather.aqi.city.aqi);
+                pm25Text.setText(weather.aqi.city.pm25);
+            } else {
+                aqiText.setTextSize(24);
+                pm25Text.setTextSize(24);
+                aqiText.setText("暂无");
+                pm25Text.setText("暂无");
+            }
+            String comfort = "舒适度：" + weather.suggestion.comfort.info;
+            String carWash = "洗车指数：" + weather.suggestion.carWash.info;
+            String sport = "运动指数：" + weather.suggestion.sport.info;
+            comfortText.setText(comfort);
+            carWashText.setText(carWash);
+            sportText.setText(sport);
+            // 天气信息加载好后显示
+            weatherLayout.setVisibility(View.VISIBLE);
+
+            // 每次应用启动会调用showWeatherInfo方法，在这里启动服务，保证每次进来都是更新过的数据
+            Intent intent = new Intent(this, AutoUpdateService.class);
+            startService(intent);
+            
+        } else {
+            Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
         }
-
-        if (weather.aqi != null) {
-            aqiText.setText(weather.aqi.city.aqi);
-            pm25Text.setText(weather.aqi.city.pm25);
-        }
-        String comfort = "舒适度：" + weather.suggestion.comfort.info;
-        String carWash = "洗车建议：" + weather.suggestion.carWash.info;
-        String sport = "运动建议：" + weather.suggestion.sport.info;
-        comfortText.setText(comfort);
-        carWashText.setText(carWash);
-        sportText.setText(sport);
-        // 天气信息加载好后显示
-        weatherLayout.setVisibility(View.VISIBLE);
-
     }
 }

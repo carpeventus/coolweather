@@ -36,10 +36,9 @@ public class ChooseAreaFragment extends Fragment {
     public static final int LEVEL_PROVINCE = 0;
     public static final int LEVEL_CITY = 1;
     public static final int LEVEL_COUNTRY = 2;
-
     private ProgressDialog progressDialog;
     private TextView titleText;
-    private Button backButton;
+    public Button backButton;
     private ListView listView;
     private ArrayAdapter<String> adapter;
     private List<String> dataList = new ArrayList<>();
@@ -52,7 +51,7 @@ public class ChooseAreaFragment extends Fragment {
     private City selectedCity;
 
     //  当前选中的是省还是市还是县
-    private int currentLevel;
+    public static int currentLevel;
 
     @Nullable
     @Override
@@ -112,7 +111,7 @@ public class ChooseAreaFragment extends Fragment {
     /**
      * 查询全国所有省，优先从数据库（Province.class）查询，如果没有则从服务器查询
      */
-    private void queryProvinces() {
+    public void queryProvinces() {
         titleText.setText("中国");
         // VISIBLE：设置控件可见
         //INVISIBLE：设置控件不可见,保留占用的空间
@@ -140,7 +139,7 @@ public class ChooseAreaFragment extends Fragment {
     /**
      * 查询选中省中所有市，优先从数据库（City.class）查询，如果没有则从服务器查询
      */
-    private void queryCities() {
+    public void queryCities() {
         titleText.setText(selectedProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
         // 限定provinceid = ?表示只在当前选中的省里面找市
@@ -163,7 +162,7 @@ public class ChooseAreaFragment extends Fragment {
     /**
      * 查询选中市中所有县，优先从数据库（Country.class）查询，如果没有则从服务器查询
      */
-    private void queryCountries() {
+    public void queryCountries() {
         titleText.setText(selectedCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
         countryList = DataSupport.where("cityid = ?", String.valueOf(selectedCity.getId())).find(Country.class);
