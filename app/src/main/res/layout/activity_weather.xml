@@ -6,7 +6,7 @@
     <!--全屏覆盖，因为FrameLayout默认放在左上角，覆盖后正好作为背景-->
     <!--对于LinearLayout, 是“占位”，若第一个控件就是match_parent全屏覆盖了，第二个控件就不会显示了而不是像FrameLayout一样覆盖第一个-->
     <ImageView
-        android:id="@+id/bing_pic_img_view"
+        android:id="@+id/pic_img_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />

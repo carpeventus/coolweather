@@ -8,11 +8,7 @@ import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.os.SystemClock;
 import android.preference.PreferenceManager;
-import android.support.annotation.IntDef;
-import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
-import com.example.administrator.coolweather.WeatherActivity;
 import com.example.administrator.coolweather.gson.Weather;
 import com.example.administrator.coolweather.util.HttpUtil;
 import com.example.administrator.coolweather.util.Utility;
@@ -34,7 +30,7 @@ public class AutoUpdateService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         updateWeather();
-        updatePic();
+//        updatePic();
         AlarmManager manager = (AlarmManager) getSystemService(ALARM_SERVICE);
         int anHour = 60 * 60 * 1000; // 每隔一小时更新一次
         long triggerAtTime = SystemClock.elapsedRealtime() + anHour;
@@ -84,24 +80,24 @@ public class AutoUpdateService extends Service {
         }
     }
 
-    /**
-     * 更新图片
-     */
-    private void updatePic() {
-        String requestBingPicUrl = "http://guolin.tech/api/bing_pic";
-        HttpUtil.sendOkHttpRequest(requestBingPicUrl, new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String bingPic = response.body().string();
-                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(AutoUpdateService.this).edit();
-                editor.putString("bing_pic", bingPic);
-                editor.apply();
-            }
-        });
-    }
+//    /**
+//     * 更新图片
+//     */
+//    private void updatePic() {
+//        String requestBingPicUrl = "http://guolin.tech/api/bing_pic";
+//        HttpUtil.sendOkHttpRequest(requestBingPicUrl, new Callback() {
+//            @Override
+//            public void onFailure(Call call, IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//            @Override
+//            public void onResponse(Call call, Response response) throws IOException {
+//                final String bingPic = response.body().string();
+//                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(AutoUpdateService.this).edit();
+//                editor.putString("bing_pic", bingPic);
+//                editor.apply();
+//            }
+//        });
+//    }
 }

@@ -19,7 +19,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
 import com.example.administrator.coolweather.gson.Forecast;
 import com.example.administrator.coolweather.gson.Weather;
 import com.example.administrator.coolweather.service.AutoUpdateService;
@@ -37,6 +36,7 @@ public class WeatherActivity extends AppCompatActivity {
 
     public SwipeRefreshLayout swipeRefreshLayout;
     private String mWeatherId;
+    private Weather mWeather;
 
     private ScrollView weatherLayout;
     private TextView titleCity;
@@ -52,7 +52,8 @@ public class WeatherActivity extends AppCompatActivity {
     private TextView carWashText;
     private TextView sportText;
 
-    private ImageView bingPicView;
+    private ImageView picView;
+    private ImageView weatherImgView;
     public DrawerLayout drawerLayout;
     private Button navButton;
 
@@ -73,7 +74,8 @@ public class WeatherActivity extends AppCompatActivity {
         // 初始化各个控件
         drawerLayout = (DrawerLayout) findViewById(R.id.drawer_layout);
         navButton = (Button) findViewById(R.id.nav_button);
-        bingPicView = (ImageView) findViewById(R.id.bing_pic_img_view);
+        picView = (ImageView) findViewById(R.id.pic_img_view);
+        weatherImgView = (ImageView) findViewById(R.id.weather_img);
         weatherLayout = (ScrollView) findViewById(R.id.weather_scroll_view);
         titleCity = (TextView) findViewById(R.id.city_title);
         titleUpdateTime = (TextView) findViewById(R.id.title_update_time);
@@ -94,10 +96,12 @@ public class WeatherActivity extends AppCompatActivity {
         String weatherString = preferences.getString("weather", null);
         if (weatherString != null) {
             // 有缓存时直接解析天气数据,每次打开程序就自动更新
-            Weather weather = Utility.handleWeatherResponse(weatherString);
-            mWeatherId = weather.basic.weatherId;
+            mWeather = Utility.handleWeatherResponse(weatherString);
+            mWeatherId = mWeather.basic.weatherId;
             // 这里会开启服务，这时开始更新数据
-            showWeatherInfo(weather);
+            showWeatherInfo(mWeather);
+//            服务随时可能被kill掉，若不加这句，每次进入应用可能都需要手动刷新
+//            requestWeather(mWeatherId);
             // 无法缓存时去服务器查询
         } else {
             // 只有第一次选择城市的时候回进入这个条件，之后都会从SharedPreferences读取最新选择的城市
@@ -106,7 +110,6 @@ public class WeatherActivity extends AppCompatActivity {
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(mWeatherId);
         }
-
         navButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -122,13 +125,12 @@ public class WeatherActivity extends AppCompatActivity {
             }
         });
 
-        // 先试着从本地加载图片
-        String bingPic = preferences.getString("bing_pic", null);
-        if (bingPic != null) {
-            Glide.with(this).load(bingPic).into(bingPicView);
-        } else {
-            loadBingPic();
-        }
+//        // 先试着从本地加载图片
+//        String bingPic = preferences.getString("bing_pic", null);
+//        if (bingPic != null) {
+//        } else {
+//            loadBingPic();
+//        }
 
         drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
 
@@ -180,33 +182,70 @@ public class WeatherActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * 加载Bing每日一图
-     */
 
-    private void loadBingPic() {
-        String requestBingPicUrl = "http://guolin.tech/api/bing_pic";
-        HttpUtil.sendOkHttpRequest(requestBingPicUrl, new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                e.printStackTrace();
-            }
-
-            @Override
-            public void onResponse(Call call, Response response) throws IOException {
-                final String bingPic = response.body().string();
-                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
-                editor.putString("bing_pic", bingPic);
-                editor.apply();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Glide.with(WeatherActivity.this).load(bingPic).into(bingPicView);
-                    }
-                });
-            }
-        });
+    private void loadPic(Weather weather) {
+        String info = weather.now.more.info;
+        if (info.substring(info.length() - 1, info.length()).equals("晴")) {
+            picView.setImageResource(R.drawable.sunny10);
+            weatherImgView.setImageResource(R.drawable.sunny20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("云")) {
+            picView.setImageResource(R.drawable.clondy10);
+            weatherImgView.setImageResource(R.drawable.cloundy20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("雨")) {
+            picView.setImageResource(R.drawable.rainy10);
+            weatherImgView.setImageResource(R.drawable.rainy20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("阴")) {
+            picView.setImageResource(R.drawable.overcast10);
+            weatherImgView.setImageResource(R.drawable.overcast20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("霾")) {
+            picView.setImageResource(R.drawable.haze10);
+            weatherImgView.setImageResource(R.drawable.haze20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("雪")) {
+            picView.setImageResource(R.drawable.snowy10);
+            weatherImgView.setImageResource(R.drawable.snow20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("雾")) {
+            picView.setImageResource(R.drawable.fog10);
+            weatherImgView.setImageResource(R.drawable.fog20);
+        } else if (info.substring(info.length() - 1, info.length()).equals("风")) {
+            picView.setImageResource(R.drawable.windy10);
+            weatherImgView.setImageResource(R.drawable.windy20);
+        } else if (info.contains("沙") || info.contains("尘")) {
+            picView.setImageResource(R.drawable.sand10);
+            weatherImgView.setImageResource(R.drawable.sand20);
+        } else if (info.contains("冰")) {
+            picView.setImageResource(R.drawable.snowy10);
+            weatherImgView.setImageResource(R.drawable.ice20);
+        } else {
+            picView.setImageResource(R.drawable.default_pic10);
+        }
     }
+//    /**
+//     * 加载Bing每日一图
+//     */
+//
+//    private void loadBingPic() {
+//        String requestBingPicUrl = "http://guolin.tech/api/bing_pic";
+//        HttpUtil.sendOkHttpRequest(requestBingPicUrl, new Callback() {
+//            @Override
+//            public void onFailure(Call call, IOException e) {
+//                e.printStackTrace();
+//            }
+//
+//            @Override
+//            public void onResponse(Call call, Response response) throws IOException {
+//                final String bingPic = response.body().string();
+//                SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
+//                editor.putString("bing_pic", bingPic);
+//                editor.apply();
+//                runOnUiThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        Glide.with(WeatherActivity.this).load(bingPic).into(picView);
+//                    }
+//                });
+//            }
+//        });
+//    }
 
     /**
      * 根据天气id来请求天气数据
@@ -232,18 +271,18 @@ public class WeatherActivity extends AppCompatActivity {
             public void onResponse(Call call, Response response) throws IOException {
                 final String responseText = response.body().string();
                 // responseText是从服务器返回的，上面那个weatherString是从preference里读取的
-                final Weather weather = Utility.handleWeatherResponse(responseText);
+                mWeather = Utility.handleWeatherResponse(responseText);
                 // 显示天气，牵涉到UI操作，切换到主线程
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (weather != null && "ok".equals(weather.status)) {
+                        if (mWeather != null && "ok".equals(mWeather.status)) {
                             SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
                             editor.putString("weather", responseText);
                             editor.apply();
                             // 每请求一次就保存当前城市的ID
-                            mWeatherId = weather.basic.weatherId;
-                            showWeatherInfo(weather);
+                            mWeatherId = mWeather.basic.weatherId;
+                            showWeatherInfo(mWeather);
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
@@ -253,7 +292,7 @@ public class WeatherActivity extends AppCompatActivity {
             }
         });
         // 每次请求天气数据的时候，也请求图片
-        loadBingPic();
+
     }
 
     /**
@@ -306,9 +345,11 @@ public class WeatherActivity extends AppCompatActivity {
             comfortText.setText(comfort);
             carWashText.setText(carWash);
             sportText.setText(sport);
+            // 加载图片
+            loadPic(mWeather);
             // 天气信息加载好后显示
-            weatherLayout.setVisibility(View.VISIBLE);
 
+            weatherLayout.setVisibility(View.VISIBLE);
             // 每次应用启动会调用showWeatherInfo方法，在这里启动服务，保证每次进来都是更新过的数据
             Intent intent = new Intent(this, AutoUpdateService.class);
             startService(intent);
